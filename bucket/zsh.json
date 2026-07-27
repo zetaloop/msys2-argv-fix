@@ -1,0 +1,32 @@
+{
+    "version": "5.9-5",
+    "description": "Z shell for Git for Windows",
+    "homepage": "https://www.zsh.org/",
+    "license": "Zsh",
+    "depends": "main/git",
+    "architecture": {
+        "64bit": {
+            "url": "https://mirror.msys2.org/msys/x86_64/zsh-5.9-5-x86_64.pkg.tar.zst",
+            "hash": "f2724f6c4bebc6185ed78ec89c0e4f294887fa0d60de7126dc56c2f1017f9854"
+        },
+        "arm64": {
+            "pre_install": "abort \"MSYS2 does not publish an ARM64 zsh package.\""
+        }
+    },
+    "pre_install": [
+        "Copy-Item \"$bucketsdir\\$bucket\\scripts\\$app\\zsh.cmd\" \"$dir\"",
+        "Copy-Item \"$bucketsdir\\$bucket\\scripts\\$app\\zshenv\" \"$dir\\.zshenv\""
+    ],
+    "bin": "zsh.cmd",
+    "checkver": {
+        "url": "https://packages.msys2.org/packages/zsh?repo=msys&variant=x86_64",
+        "regex": "msys/x86_64/zsh-([\\d.]+-\\d+)-x86_64\\.pkg\\.tar\\.zst"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://mirror.msys2.org/msys/x86_64/zsh-$version-x86_64.pkg.tar.zst"
+            }
+        }
+    }
+}
