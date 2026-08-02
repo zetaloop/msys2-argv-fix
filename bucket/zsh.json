@@ -14,10 +14,13 @@
         }
     },
     "pre_install": [
-        "Copy-Item \"$bucketsdir\\$bucket\\scripts\\$app\\zsh.cmd\" \"$dir\"",
-        "Copy-Item \"$bucketsdir\\$bucket\\scripts\\$app\\zshenv\" \"$dir\\.zshenv\""
+        "Copy-Item \"$bucketsdir\\$bucket\\scripts\\$app\\zsh\" \"$dir\"",
+        "Copy-Item \"$bucketsdir\\$bucket\\scripts\\$app\\zshenv\" \"$dir\\.zshenv\"",
+        "Copy-Item (get_shim_path) \"$dir\\zsh.exe\"",
+        "$zshRoot = & \"$env:GIT_INSTALL_ROOT\\usr\\bin\\cygpath.exe\" -u \"$dir\"",
+        "@(\"path = `\"$env:GIT_INSTALL_ROOT\\usr\\bin\\bash.exe`\"\", \"args = --noprofile --norc `\"$zshRoot/zsh`\"\") -join \"`r`n\" | Out-UTF8File \"$dir\\zsh.shim\""
     ],
-    "bin": "zsh.cmd",
+    "bin": "zsh.exe",
     "checkver": {
         "url": "https://packages.msys2.org/packages/zsh?repo=msys&variant=x86_64",
         "regex": "msys/x86_64/zsh-([\\d.]+-\\d+)-x86_64\\.pkg\\.tar\\.zst"
