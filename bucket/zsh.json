@@ -16,7 +16,7 @@
     "pre_install": [
         "Copy-Item \"$bucketsdir\\$bucket\\scripts\\$app\\zsh\" \"$dir\"",
         "Copy-Item \"$bucketsdir\\$bucket\\scripts\\$app\\zshenv\" \"$dir\\.zshenv\"",
-        "Copy-Item (get_shim_path) \"$dir\\zsh.exe\"",
+        "Copy-Item \"$(versiondir 'scoop' 'current')\\supporting\\shims\\71\\shim.exe\" \"$dir\\zsh.exe\"",
         "$zshRoot = & \"$env:GIT_INSTALL_ROOT\\usr\\bin\\cygpath.exe\" -u \"$dir\"",
         "@(\"path = `\"$env:GIT_INSTALL_ROOT\\usr\\bin\\bash.exe`\"\", \"args = --noprofile --norc `\"$zshRoot/zsh`\"\") -join \"`r`n\" | Out-UTF8File \"$dir\\zsh.shim\""
     ],
