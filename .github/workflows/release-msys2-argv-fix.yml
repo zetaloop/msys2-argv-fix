@@ -1,0 +1,51 @@
+name: Release msys2-argv-fix
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version
+        required: true
+        default: 0.0.1
+
+permissions:
+  contents: write
+
+concurrency: release-msys2-argv-fix
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build
+        shell: pwsh
+        run: ./scripts/msys2-argv-fix/build.ps1
+      - name: Test package
+        shell: pwsh
+        run: ./scripts/msys2-argv-fix/test.ps1
+      - name: Test runtime
+        run: python scripts/msys2-argv-fix/test.py
+      - name: Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ($env:GITHUB_REF -ne 'refs/heads/main') { throw 'Releases must run from main.' }
+          if ($env:VERSION -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid version: $env:VERSION" }
+
+          $tag = "msys2-argv-fix-v$env:VERSION"
+          $asset = 'dist/msys2-argv-fix.dll'
+          $hash = (Get-FileHash $asset -Algorithm SHA256).Hash.ToLower()
+          $manifest = (Get-Content scripts/msys2-argv-fix/manifest.json.template -Raw).Replace('@VERSION@', $env:VERSION).Replace('@HASH@', $hash)
+          Set-Content bucket/msys2-argv-fix.json $manifest -Encoding utf8NoBOM -NoNewline
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add bucket/msys2-argv-fix.json
+          git commit -m "chore: release msys2-argv-fix $env:VERSION"
+          git tag $tag
+          git push --atomic origin HEAD:main $tag
+          gh release create $tag $asset --title "msys2-argv-fix $env:VERSION" --notes 'Restores long command-line arguments passed from native Windows processes to MSYS2 programs.'

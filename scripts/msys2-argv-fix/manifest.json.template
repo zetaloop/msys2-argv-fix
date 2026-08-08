@@ -1,0 +1,45 @@
+{
+    "version": "@VERSION@",
+    "description": "Restores long command-line arguments passed to MSYS2 programs",
+    "homepage": "https://github.com/zetaloop/scoop-zsh",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/zetaloop/scoop-zsh/releases/download/msys2-argv-fix-v@VERSION@/msys2-argv-fix.dll",
+            "hash": "@HASH@"
+        },
+        "arm64": {
+            "pre_install": "abort \"MSYS2 does not publish an ARM64 runtime.\""
+        }
+    },
+    "pre_install": "New-Item \"$dir\\preload\" -ItemType Directory -Force | Out-Null",
+    "post_install": [
+        "$target = \"$dir\\preload\\msys2-argv-fix-$version.dll\"",
+        "if (!(Test-Path $target)) { Copy-Item \"$dir\\msys2-argv-fix.dll\" $target }",
+        "$prefix = \"$persist_dir\\preload\".Replace('\\', '/')",
+        "$prefix = \"/proc/cygdrive/$($prefix[0].ToString().ToLower())$($prefix.Substring(2))\"",
+        "$entry = \"$prefix/msys2-argv-fix-$version.dll\"",
+        "$entries = @((Get-EnvVar 'LD_PRELOAD' -Global:$global) -split ':' | Where-Object { $_ -and $_ -notlike \"$prefix/msys2-argv-fix-*.dll\" })",
+        "Set-EnvVar 'LD_PRELOAD' (($entries + $entry) -join ':') -Global:$global"
+    ],
+    "uninstaller": {
+        "script": [
+            "$prefix = \"$persist_dir\\preload\".Replace('\\', '/')",
+            "$prefix = \"/proc/cygdrive/$($prefix[0].ToString().ToLower())$($prefix.Substring(2))\"",
+            "$entries = @((Get-EnvVar 'LD_PRELOAD' -Global:$global) -split ':' | Where-Object { $_ -and $_ -notlike \"$prefix/msys2-argv-fix-*.dll\" })",
+            "Set-EnvVar 'LD_PRELOAD' ($entries -join ':') -Global:$global"
+        ]
+    },
+    "persist": "preload",
+    "checkver": {
+        "github": "https://github.com/zetaloop/scoop-zsh",
+        "regex": "msys2-argv-fix-v([\\d.]+)"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/zetaloop/scoop-zsh/releases/download/msys2-argv-fix-v$version/msys2-argv-fix.dll"
+            }
+        }
+    }
+}

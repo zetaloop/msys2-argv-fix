@@ -11,6 +11,21 @@ permissions:
   contents: read
 
 jobs:
+  msys2-argv-fix:
+    name: Test msys2-argv-fix
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build
+        shell: pwsh
+        run: ./scripts/msys2-argv-fix/build.ps1
+      - name: Test package
+        shell: pwsh
+        run: ./scripts/msys2-argv-fix/test.ps1
+      - name: Test runtime
+        run: python scripts/msys2-argv-fix/test.py
+
   test:
     name: Test
     runs-on: windows-latest
