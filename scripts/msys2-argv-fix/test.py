@@ -1,7 +1,29 @@
+import ctypes
+import json
 import os
+import shlex
 import subprocess
+import sys
 import tempfile
+from ctypes import wintypes
 from pathlib import Path
+
+get_long_path_name = ctypes.WinDLL("kernel32", use_last_error=True).GetLongPathNameW
+get_long_path_name.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+get_long_path_name.restype = wintypes.DWORD
+
+
+def normalize_windows_argument(argument: str) -> str:
+    prefix = "--file=" if argument.startswith("--file=") else ""
+    path = argument[len(prefix) :]
+    if len(path) < 3 or path[1:3] != ":\\":
+        return argument
+    buffer = ctypes.create_unicode_buffer(32768)
+    length = get_long_path_name(path, buffer, len(buffer))
+    if not length:
+        raise ctypes.WinError(ctypes.get_last_error())
+    return prefix + buffer.value
+
 
 root = Path(__file__).parents[2]
 dll = (root / "dist/msys2-argv-fix.dll").resolve()
@@ -10,6 +32,11 @@ git_root = next(
     path for path in git_exec_path.parents if (path / "usr/bin/bash.exe").exists()
 )
 bash = git_root / "usr/bin/bash.exe"
+scoop_config = Path.home() / ".config/scoop/config.json"
+scoop_root = Path.home() / "scoop"
+if scoop_config.exists():
+    scoop_root = Path(json.loads(scoop_config.read_text()).get("root_path", scoop_root))
+zsh = scoop_root / "apps/zsh/current/usr/bin/zsh.exe"
 
 
 def msys_path(path: Path) -> str:
@@ -49,3 +76,77 @@ with tempfile.TemporaryDirectory() as directory:
     )
     assert result.returncode == 0, result.stderr.decode(errors="replace")
     assert result.stdout.decode() == msys_path(probe)
+
+    existing = Path(directory) / "存在 file.txt"
+    existing.touch()
+    missing = Path(directory) / "missing.txt"
+    subdirectory = Path(directory) / "subdirectory"
+    subdirectory.mkdir()
+    native_python = shlex.quote(msys_path(Path(sys.executable)))
+    existing_posix = msys_path(existing)
+    print_arguments = shlex.quote(
+        "import json,sys; print(json.dumps(sys.argv[1:], ensure_ascii=True))"
+    )
+    native_command = f"{native_python} -c {print_arguments}"
+    print_environment = shlex.quote(
+        'import json,os,sys; print(json.dumps([sys.argv[1], os.environ["MSYS2_ARG_TEST"]], ensure_ascii=True))'
+    )
+    environment_command = f"{native_python} -c {print_environment}"
+    script = "; ".join(
+        [
+            "unset MSYS2_ARG_CONV_EXCL",
+            f"{native_command} {shlex.quote(existing_posix)}",
+            f"export MSYS2_ARG_CONV_EXCL={shlex.quote(existing_posix)}",
+            f"{native_command} {shlex.quote(existing_posix)}",
+            "export MSYS2_ARG_CONV_EXCL='*'",
+            f"{native_command} {shlex.quote(existing_posix)}",
+            "export MSYS2_ARG_CONV_EXCL=';'",
+            f"{native_command} --file={shlex.quote(existing_posix)}",
+            f"{native_command} https://example.com/a '/foo.*/' /c/a:/c/b src:/workspace -I/c/include {shlex.quote(msys_path(missing))}",
+            f"cd {shlex.quote(msys_path(subdirectory))}",
+            "unset MSYS2_ARG_CONV_EXCL",
+            f"{native_command} {shlex.quote('../' + existing.name)}",
+            "export MSYS2_ENV_CONV_EXCL='*'",
+            f"export MSYS2_ARG_TEST={shlex.quote(existing_posix)}",
+            f'{environment_command} "$MSYS2_ARG_TEST"',
+        ]
+    )
+    result = subprocess.run(
+        [bash, "-c", script], env=env, capture_output=True, check=False
+    )
+    assert result.returncode == 0, result.stderr.decode(errors="replace")
+    output = [
+        [normalize_windows_argument(argument) for argument in json.loads(line)]
+        for line in result.stdout.decode().splitlines()
+    ]
+    existing_windows = str(existing.resolve())
+    assert output == [
+        [existing_windows],
+        [existing_posix],
+        [existing_posix],
+        [f"--file={existing_windows}"],
+        [
+            "https://example.com/a",
+            "/foo.*/",
+            "/c/a:/c/b",
+            "src:/workspace",
+            "-I/c/include",
+            msys_path(missing),
+        ],
+        [existing_windows],
+        [existing_windows, existing_posix],
+    ], output
+
+    if zsh.exists():
+        result = subprocess.run(
+            [
+                zsh,
+                "-c",
+                f"unset MSYS2_ARG_CONV_EXCL; {native_command} {shlex.quote(existing_posix)}",
+            ],
+            env=env,
+            capture_output=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr.decode(errors="replace")
+        assert json.loads(result.stdout) == [existing_windows]

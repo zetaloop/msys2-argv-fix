@@ -9,10 +9,12 @@ scoop bucket add zsh https://github.com/zetaloop/scoop-zsh
 scoop install zsh/zsh
 ```
 
-`msys2-argv-fix` is a tiny DLL that keeps long command payloads from native Windows programs intact in MSYS2, including large `apply_patch` payloads.
+`msys2-argv-fix` is a tiny DLL that preserves command-line arguments in both directions between native Windows and MSYS2 programs, including large `apply_patch` payloads.
 
 ```bash
 scoop install zsh/msys2-argv-fix
 ```
 
 MSYS2 sends every native argument through [Cygwin's globbing code](https://cygwin.com/pipermail/cygwin/2014-May/215372.html) before `main()`, even when there is nothing to expand. The globber works through fixed 8192-character buffers, so a long quoted command is cut short for no useful reason. The DLL loads later through `LD_PRELOAD`, replaces the application's `main()` entry, and rebuilds `argv` from the untouched `GetCommandLineW()` result. Plain arguments bypass globbing; only unquoted expansion patterns go back to the runtime and retain its buffer limit.
+
+For native child processes, the DLL replaces MSYS2's broad argument conversion with a conservative rule: existing `/`, `./`, and `../` paths, including `--name=path` values, become Windows paths. URIs, regular expressions, path lists, joined short options, and paths that do not exist remain unchanged. `MSYS2_ARG_CONV_EXCL` keeps its dynamic semicolon-delimited prefix semantics, including `*` to disable all conversion.

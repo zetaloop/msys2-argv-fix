@@ -6,7 +6,7 @@ on:
       version:
         description: Version
         required: true
-        default: 0.0.1
+        default: 0.1.0
 
 permissions:
   contents: write
@@ -48,4 +48,4 @@ jobs:
           git commit -m "chore: release msys2-argv-fix $env:VERSION"
           git tag $tag
           git push --atomic origin HEAD:main $tag
-          gh release create $tag $asset --title "msys2-argv-fix $env:VERSION" --notes 'Restores long command-line arguments passed from native Windows processes to MSYS2 programs.'
+          gh release create $tag $asset --title "msys2-argv-fix $env:VERSION" --notes 'Preserves command-line arguments between native Windows and MSYS2 programs.'

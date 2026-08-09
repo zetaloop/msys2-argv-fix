@@ -1,6 +1,6 @@
 {
     "version": "@VERSION@",
-    "description": "Restores long command-line arguments passed to MSYS2 programs",
+    "description": "Repairs command-line arguments crossing between native Windows and MSYS2 programs",
     "homepage": "https://github.com/zetaloop/scoop-zsh",
     "license": "MIT",
     "architecture": {
