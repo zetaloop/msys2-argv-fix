@@ -1,12 +1,12 @@
 {
-    "version": "0.0.1",
-    "description": "Restores long command-line arguments passed to MSYS2 programs",
+    "version": "0.1.0",
+    "description": "Repairs command-line arguments crossing between native Windows and MSYS2 programs",
     "homepage": "https://github.com/zetaloop/scoop-zsh",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/zetaloop/scoop-zsh/releases/download/msys2-argv-fix-v0.0.1/msys2-argv-fix.dll",
-            "hash": "4c2240e9cccff740c0f6b054aa84caa83a53da8b4085b43d0372e9ebf1b402f6"
+            "url": "https://github.com/zetaloop/scoop-zsh/releases/download/msys2-argv-fix-v0.1.0/msys2-argv-fix.dll",
+            "hash": "d55f9d7baf70b1d4f4cdeeffd0c3694ee9261f32c0faa6f14c0fc2b739343c85"
         },
         "arm64": {
             "pre_install": "abort \"MSYS2 does not publish an ARM64 runtime.\""
