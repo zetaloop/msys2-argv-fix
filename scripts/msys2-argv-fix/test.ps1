@@ -1,6 +1,5 @@
 $root = New-Item (Join-Path $env:TEMP ([guid]::NewGuid())) -ItemType Directory
 $dir = $root.FullName
-$persist_dir = $dir
 $version = '0.0.1'
 $global = $false
 $stored = @{
@@ -27,10 +26,10 @@ try {
 
     $prefix = $dir.Replace('\', '/')
     $prefix = "/proc/cygdrive/$($prefix[0].ToString().ToLower())$($prefix.Substring(2))"
-    $entry = "$prefix/preload/msys2-argv-fix-$version.dll"
+    $entry = "$prefix/msys2-argv-fix.dll"
     if ($stored['LD_PRELOAD'] -ne "/existing/preload.dll:$entry") { throw "Unexpected LD_PRELOAD: $($stored['LD_PRELOAD'])" }
     if ($stored['MSYS2_ARG_CONV_EXCL'] -ne '*') { throw 'MSYS2_ARG_CONV_EXCL was modified.' }
-    if (!(Test-Path "$dir\preload\msys2-argv-fix-$version.dll")) { throw 'Persisted DLL is missing.' }
+    if (!(Test-Path "$dir\msys2-argv-fix.dll")) { throw 'Installed DLL is missing.' }
 
     & ([scriptblock]::Create($manifest.uninstaller.script -join "`r`n"))
     if ($stored['LD_PRELOAD'] -ne '/existing/preload.dll') { throw "Unexpected LD_PRELOAD after uninstall: $($stored['LD_PRELOAD'])" }

@@ -12,25 +12,22 @@
             "pre_install": "abort \"MSYS2 does not publish an ARM64 runtime.\""
         }
     },
-    "pre_install": "New-Item \"$dir\\preload\" -ItemType Directory -Force | Out-Null",
     "post_install": [
-        "$target = \"$dir\\preload\\msys2-argv-fix-$version.dll\"",
-        "if (!(Test-Path $target)) { Copy-Item \"$dir\\msys2-argv-fix.dll\" $target }",
-        "$prefix = \"$persist_dir\\preload\".Replace('\\', '/')",
+        "$prefix = \"$dir\".Replace('\\', '/')",
         "$prefix = \"/proc/cygdrive/$($prefix[0].ToString().ToLower())$($prefix.Substring(2))\"",
-        "$entry = \"$prefix/msys2-argv-fix-$version.dll\"",
-        "$entries = @((Get-EnvVar 'LD_PRELOAD' -Global:$global) -split ':' | Where-Object { $_ -and $_ -notlike \"$prefix/msys2-argv-fix-*.dll\" })",
+        "$entry = \"$prefix/msys2-argv-fix.dll\"",
+        "$entries = @((Get-EnvVar 'LD_PRELOAD' -Global:$global) -split ':' | Where-Object { $_ -and $_ -ne $entry })",
         "Set-EnvVar 'LD_PRELOAD' (($entries + $entry) -join ':') -Global:$global"
     ],
     "uninstaller": {
         "script": [
-            "$prefix = \"$persist_dir\\preload\".Replace('\\', '/')",
+            "$prefix = \"$dir\".Replace('\\', '/')",
             "$prefix = \"/proc/cygdrive/$($prefix[0].ToString().ToLower())$($prefix.Substring(2))\"",
-            "$entries = @((Get-EnvVar 'LD_PRELOAD' -Global:$global) -split ':' | Where-Object { $_ -and $_ -notlike \"$prefix/msys2-argv-fix-*.dll\" })",
+            "$entry = \"$prefix/msys2-argv-fix.dll\"",
+            "$entries = @((Get-EnvVar 'LD_PRELOAD' -Global:$global) -split ':' | Where-Object { $_ -and $_ -ne $entry })",
             "Set-EnvVar 'LD_PRELOAD' ($entries -join ':') -Global:$global"
         ]
     },
-    "persist": "preload",
     "checkver": {
         "github": "https://github.com/zetaloop/scoop-zsh",
         "regex": "msys2-argv-fix-v([\\d.]+)"
