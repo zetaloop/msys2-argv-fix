@@ -62,6 +62,7 @@ struct runtime_api {
     cygwin_internal_fn cygwin_internal;
     cygwin_conv_path_fn cygwin_conv_path;
     getpid_fn getpid;
+    runtime_free_fn free;
     runtime_realloc_fn realloc;
     glob_fn glob;
     globfree_fn globfree;
@@ -117,6 +118,7 @@ _Static_assert(offsetof(struct process_info, state) == 604, "Unexpected external
 
 static struct runtime_api runtime;
 static main_fn application_main;
+static arg_converter_fn original_arg_converter;
 
 static bool
 is_separator(char value)
@@ -430,16 +432,26 @@ path_is_unambiguous(const char *path)
     return !strchr(path, ':') && !strpbrk(path, "*?[]{}()|^$+\\");
 }
 
-static char * __cdecl
-convert_native_argument(const char *argument, const char *exclusions, size_t exclusion_count)
+static bool
+native_path_exists(const char *path)
 {
-    if (!argument || argument_is_excluded(argument, exclusions, exclusion_count))
-        return (char *) argument;
+    int length = MultiByteToWideChar(CP_UTF8, 0, path, -1, NULL, 0);
+    if (!length)
+        return false;
 
-    const char *path = path_value(argument);
-    if (!path || !path_is_unambiguous(path))
-        return (char *) argument;
+    wchar_t *wide_path = malloc((size_t) length * sizeof(*wide_path));
+    if (!wide_path)
+        return false;
 
+    bool exists = MultiByteToWideChar(CP_UTF8, 0, path, -1, wide_path, length) == length &&
+                  GetFileAttributesW(wide_path) != INVALID_FILE_ATTRIBUTES;
+    free(wide_path);
+    return exists;
+}
+
+static char *
+convert_relative_argument(const char *argument, const char *path)
+{
     ptrdiff_t wide_size = runtime.cygwin_conv_path(CCP_POSIX_TO_WIN_W, path, NULL, 0);
     if (wide_size <= 0)
         return (char *) argument;
@@ -477,6 +489,32 @@ convert_native_argument(const char *argument, const char *exclusions, size_t exc
         memcpy(result + prefix_length, converted, (size_t) converted_size);
     free(converted);
     return result ? result : (char *) argument;
+}
+
+static char * __cdecl
+convert_native_argument(const char *argument, const char *exclusions, size_t exclusion_count)
+{
+    if (!argument || argument_is_excluded(argument, exclusions, exclusion_count))
+        return (char *) argument;
+
+    const char *path = path_value(argument);
+    if (!path || !path_is_unambiguous(path))
+        return (char *) argument;
+
+    if (path[0] == '.')
+        return convert_relative_argument(argument, path);
+
+    char *converted = original_arg_converter(argument, NULL, 0);
+    if (!converted || converted == argument)
+        return (char *) argument;
+
+    size_t prefix_length = (size_t) (path - argument);
+    if (!native_path_exists(converted + prefix_length)) {
+        runtime.free(converted);
+        return (char *) argument;
+    }
+
+    return converted;
 }
 
 static IMAGE_NT_HEADERS64 *
@@ -689,6 +727,12 @@ install_argument_hook(void)
     if (!call)
         return false;
 
+    int32_t original_displacement;
+    memcpy(&original_displacement, call + 1, sizeof(original_displacement));
+    original_arg_converter = (arg_converter_fn) ((BYTE *) call + 5 + original_displacement);
+    if (!original_arg_converter)
+        return false;
+
     BYTE *relay = allocate_relay(call);
     if (!relay)
         return false;
@@ -716,8 +760,6 @@ install_argument_hook(void)
         return false;
     }
 
-    int32_t original_displacement;
-    memcpy(&original_displacement, call + 1, sizeof(original_displacement));
     memcpy(call + 1, &displacement, sizeof(displacement));
     if (FlushInstructionCache(GetCurrentProcess(), call, 5)) {
         DWORD ignored;
@@ -799,10 +841,12 @@ DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
     LOAD_RUNTIME_FUNCTION(fclose, fclose_fn, "fclose");
 
     struct process_prefix *process = (struct process_prefix *) runtime.cygwin_internal(CW_USER_DATA);
-    if (!process || process->size < sizeof(*process) || !process->realloc || !process->main)
+    if (!process || process->size < sizeof(*process) || !process->free || !process->realloc ||
+        !process->main)
         return FALSE;
 
     application_main = process->main;
+    runtime.free = process->free;
     runtime.realloc = process->realloc;
     if (!install_argument_hook())
         return FALSE;

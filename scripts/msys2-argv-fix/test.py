@@ -16,8 +16,9 @@ get_long_path_name.restype = wintypes.DWORD
 def normalize_windows_argument(argument: str) -> str:
     prefix = "--file=" if argument.startswith("--file=") else ""
     path = argument[len(prefix) :]
-    if len(path) < 3 or path[1:3] != ":\\":
+    if len(path) < 3 or path[1] != ":" or path[2] not in "\\/":
         return argument
+    path = path.replace("/", "\\")
     buffer = ctypes.create_unicode_buffer(32768)
     length = get_long_path_name(path, buffer, len(buffer))
     if not length:
@@ -82,6 +83,21 @@ with tempfile.TemporaryDirectory() as directory:
     missing = Path(directory) / "missing.txt"
     subdirectory = Path(directory) / "subdirectory"
     subdirectory.mkdir()
+    scoop = Path(directory) / "Scoop"
+    junction = scoop / "apps/pnpm/current/bin"
+    junction_target = scoop / "persist/pnpm/bin"
+    junction_target.mkdir(parents=True)
+    linked = scoop / "persist/target.txt"
+    linked.touch()
+    junction.parent.mkdir(parents=True)
+    result = subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(junction), str(junction_target)],
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr.decode(errors="replace")
+    linked_path = junction / "../../../../persist/target.txt"
+    linked_posix = f"/{linked_path.drive[0].lower()}{linked_path.as_posix()[2:]}"
     native_python = shlex.quote(msys_path(Path(sys.executable)))
     existing_posix = msys_path(existing)
     print_arguments = shlex.quote(
@@ -105,7 +121,7 @@ with tempfile.TemporaryDirectory() as directory:
             f"{native_command} https://example.com/a '/foo.*/' /c/a:/c/b src:/workspace -I/c/include {shlex.quote(msys_path(missing))}",
             f"cd {shlex.quote(msys_path(subdirectory))}",
             "unset MSYS2_ARG_CONV_EXCL",
-            f"{native_command} {shlex.quote('../' + existing.name)}",
+            f"{native_command} {shlex.quote('../' + existing.name)} {shlex.quote(linked_posix)}",
             "export MSYS2_ENV_CONV_EXCL='*'",
             f"export MSYS2_ARG_TEST={shlex.quote(existing_posix)}",
             f'{environment_command} "$MSYS2_ARG_TEST"',
@@ -120,6 +136,7 @@ with tempfile.TemporaryDirectory() as directory:
         for line in result.stdout.decode().splitlines()
     ]
     existing_windows = str(existing.resolve())
+    linked_windows = normalize_windows_argument(linked_path.as_posix())
     assert output == [
         [existing_windows],
         [existing_posix],
@@ -133,7 +150,7 @@ with tempfile.TemporaryDirectory() as directory:
             "-I/c/include",
             msys_path(missing),
         ],
-        [existing_windows],
+        [existing_windows, linked_windows],
         [existing_windows, existing_posix],
     ], output
 
@@ -149,4 +166,7 @@ with tempfile.TemporaryDirectory() as directory:
             check=False,
         )
         assert result.returncode == 0, result.stderr.decode(errors="replace")
-        assert json.loads(result.stdout) == [existing_windows]
+        assert [
+            normalize_windows_argument(argument)
+            for argument in json.loads(result.stdout)
+        ] == [existing_windows]
