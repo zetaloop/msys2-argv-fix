@@ -18,13 +18,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7
       - name: Build
         shell: pwsh
         run: ./scripts/msys2-argv-fix/build.ps1
-      - name: Test package
-        shell: pwsh
-        run: ./scripts/msys2-argv-fix/test.ps1
       - name: Test runtime
         run: python scripts/msys2-argv-fix/test.py
       - name: Release
@@ -38,14 +35,4 @@ jobs:
 
           $tag = "msys2-argv-fix-v$env:VERSION"
           $asset = 'dist/msys2-argv-fix.dll'
-          $hash = (Get-FileHash $asset -Algorithm SHA256).Hash.ToLower()
-          $manifest = (Get-Content scripts/msys2-argv-fix/manifest.json.template -Raw).Replace('@VERSION@', $env:VERSION).Replace('@HASH@', $hash)
-          Set-Content bucket/msys2-argv-fix.json $manifest -Encoding utf8NoBOM -NoNewline
-
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add bucket/msys2-argv-fix.json
-          git commit -m "chore: release msys2-argv-fix $env:VERSION"
-          git tag $tag
-          git push --atomic origin HEAD:main $tag
-          gh release create $tag $asset --title "msys2-argv-fix $env:VERSION" --notes 'Preserves command-line arguments between native Windows and MSYS2 programs.'
+          gh release create $tag $asset --target $env:GITHUB_SHA --title "msys2-argv-fix $env:VERSION" --notes 'Preserves command-line arguments between native Windows and MSYS2 programs.'

@@ -1,14 +1,6 @@
 # scoop-zsh
 
-[![Tests](https://github.com/zetaloop/scoop-zsh/actions/workflows/ci.yml/badge.svg)](https://github.com/zetaloop/scoop-zsh/actions/workflows/ci.yml) [![Excavator](https://github.com/zetaloop/scoop-zsh/actions/workflows/excavator.yml/badge.svg)](https://github.com/zetaloop/scoop-zsh/actions/workflows/excavator.yml)
-
 Zsh for Git for Windows, without a separate MSYS2 installation.
-
-```bash
-scoop bucket add zsh https://github.com/zetaloop/scoop-zsh
-scoop install zsh/zsh
-scoop install zsh/msys2-argv-fix
-```
 
 ## `msys2-argv-fix`
 
