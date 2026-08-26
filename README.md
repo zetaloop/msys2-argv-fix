@@ -1,10 +1,6 @@
-# scoop-zsh
+# msys2-argv-fix
 
-Zsh for Git for Windows, without a separate MSYS2 installation.
-
-## `msys2-argv-fix`
-
-`msys2-argv-fix` fixes command-line argument handling between Windows and MSYS2.
+Fixes command-line argument handling between Windows and MSYS2.
 
 ### Windows to MSYS2
 

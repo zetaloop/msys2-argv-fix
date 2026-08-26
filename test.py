@@ -26,7 +26,7 @@ def normalize_windows_argument(argument: str) -> str:
     return prefix + buffer.value
 
 
-root = Path(__file__).parents[2]
+root = Path(__file__).parent
 dll = (root / "dist/msys2-argv-fix.dll").resolve()
 git_exec_path = Path(subprocess.check_output(["git", "--exec-path"], text=True).strip())
 git_root = next(
