@@ -498,7 +498,9 @@ convert_native_argument(const char *argument, const char *exclusions, size_t exc
         return (char *) argument;
 
     const char *path = path_value(argument);
-    if (!path || !path_is_unambiguous(path))
+    if (!path ||
+        (path == argument && path[0] == '/' && path[1] && !path[2]) ||
+        !path_is_unambiguous(path))
         return (char *) argument;
 
     if (path[0] == '.')
